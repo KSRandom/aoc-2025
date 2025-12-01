@@ -426,3 +426,6 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+/aoc-2025-p1/input.txt
+/aoc-2025-p1/sample.txt
+/aoc-2025-p1/Properties/launchSettings.json
