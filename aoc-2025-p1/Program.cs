@@ -42,14 +42,25 @@ namespace aoc_2025_p1
                         continue;
                     }
 
+                    // Count full cycles of 100
+                    zeroCount += value / 100;
+
                     value %= 100;
 
                     if (direction == 'L')
                     {
+                        if (number != 0 && number - value < 0 && number - value != 0)
+                        {
+                            zeroCount++;
+                        }
                         number = ((number - value) % 100 + 100) % 100;
                     }
                     else // direction == 'R'
                     {
+                        if (number + value > 100)
+                        {
+                            zeroCount++;
+                        }
                         number = (number + value) % 100;
                     }
 
