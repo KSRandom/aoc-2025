@@ -62,15 +62,34 @@ namespace aoc_2025_p2
         public static bool IsInvalidId(long number)
         {
             string str = number.ToString();
+
+            int partLength = 1;
             
-            if (str.Length % 2 != 0)
-                return false;
+            while (partLength <= str.Length / 2)
+            {
+                if (str.Length % partLength == 0)
+                {
+                    string firstPart = str.Substring(0, partLength);
+                    bool allPartsMatch = true;
 
-            int mid = str.Length / 2;
-            string firstHalf = str.Substring(0, mid);
-            string secondHalf = str.Substring(mid);
+                    for (int i = partLength; i < str.Length; i += partLength)
+                    {
+                        string currentPart = str.Substring(i, partLength);
+                        if (currentPart != firstPart)
+                        {
+                            allPartsMatch = false;
+                            break;
+                        }
+                    }
 
-            return firstHalf == secondHalf;
+                    if (allPartsMatch)
+                        return true;
+                }
+
+                partLength++;
+            }
+
+            return false;
         }
     }
 }

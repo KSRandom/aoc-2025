@@ -31,5 +31,12 @@ namespace aoc_2025_p2_test
             Assert.False(Program.IsInvalidId(38593856));
             Assert.False(Program.IsInvalidId(2121212124));
         }
+
+        [Fact]
+        public void InvalidTriplet()
+        {
+            Assert.True(Program.IsInvalidId(111));
+            Assert.True(Program.IsInvalidId(123412341234));
+        }
     }
 }
