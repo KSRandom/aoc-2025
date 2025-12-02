@@ -34,18 +34,32 @@ namespace aoc_2025_p2
                 .Select(item => item.Trim())
                 .Where(item => item.Contains('-'))
                 .Select(item => item.Split('-'))
-                .Where(parts => parts.Length == 2 && int.TryParse(parts[0], out _) && int.TryParse(parts[1], out _))
-                .Select(parts => new { First = int.Parse(parts[0]), Second = int.Parse(parts[1]) })
+                .Where(parts => parts.Length == 2 && long.TryParse(parts[0], out _) && long.TryParse(parts[1], out _))
+                .Select(parts => new { First = long.Parse(parts[0]), Second = long.Parse(parts[1]) })
                 .ToArray();
 
             Console.WriteLine($"Found {pairs.Length} number pairs:");
+            
+            long sum = 0;
+            
             foreach (var pair in pairs)
             {
                 Console.WriteLine($"{pair.First}-{pair.Second}");
+                
+                for (long number = pair.First; number <= pair.Second; number++)
+                {
+                    if (IsInvalidId(number))
+                    {
+                        Console.WriteLine($"Invalid Id: {number}");
+                        sum += number;
+                    }
+                }
             }
+            
+            Console.WriteLine($"Sum of invalid IDs: {sum}");
         }
 
-        public static bool IsInvalidId(int number)
+        public static bool IsInvalidId(long number)
         {
             string str = number.ToString();
             
