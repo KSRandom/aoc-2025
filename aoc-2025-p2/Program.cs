@@ -4,7 +4,7 @@ using System.Linq;
 
 namespace aoc_2025_p2
 {
-    internal class Program
+    public class Program
     {
         static void Main(string[] args)
         {
@@ -43,6 +43,20 @@ namespace aoc_2025_p2
             {
                 Console.WriteLine($"{pair.First}-{pair.Second}");
             }
+        }
+
+        public static bool IsInvalidId(int number)
+        {
+            string str = number.ToString();
+            
+            if (str.Length % 2 != 0)
+                return false;
+
+            int mid = str.Length / 2;
+            string firstHalf = str.Substring(0, mid);
+            string secondHalf = str.Substring(mid);
+
+            return firstHalf == secondHalf;
         }
     }
 }
