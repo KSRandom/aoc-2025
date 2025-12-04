@@ -53,6 +53,55 @@ namespace aoc_2025_p4
                 }
                 Console.WriteLine();
             }
+
+            // Remove rolls of paper iteratively
+            int removedCount = 0;
+            bool removed = true;
+
+            while (removed)
+            {
+                removed = false;
+                int[] dirX2 = { -1, -1, -1, 0, 0, 1, 1, 1 };
+                int[] dirY2 = { -1, 0, 1, -1, 1, -1, 0, 1 };
+
+                for (int i = 0; i < rows; i++)
+                {
+                    for (int j = 0; j < cols; j++)
+                    {
+                        if (grid[i, j] == '@')
+                        {
+                            int adjacentCount = 0;
+                            for (int d = 0; d < 8; d++)
+                            {
+                                int newI = i + dirX2[d];
+                                int newJ = j + dirY2[d];
+                                if (newI >= 0 && newI < rows && newJ >= 0 && newJ < cols && grid[newI, newJ] == '@')
+                                {
+                                    adjacentCount++;
+                                }
+                            }
+
+                            if (adjacentCount < 4)
+                            {
+                                grid[i, j] = '.';
+                                removedCount++;
+                                removed = true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            Console.WriteLine($"Total rolls of paper removed: {removedCount}");
+            Console.WriteLine("\nGrid after removal:");
+            for (int i = 0; i < rows; i++)
+            {
+                for (int j = 0; j < cols; j++)
+                {
+                    Console.Write(grid[i, j]);
+                }
+                Console.WriteLine();
+            }
         }
     }
 }
