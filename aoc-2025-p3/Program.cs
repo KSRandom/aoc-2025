@@ -1,5 +1,7 @@
 ﻿using System;
 using System.IO;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace aoc_2025_p3
 {
@@ -25,50 +27,84 @@ namespace aoc_2025_p3
 
             foreach (var line in File.ReadLines(inputPath))
             {
-                if (line.Length < 2)
+                if (string.IsNullOrWhiteSpace(line))
                     continue;
 
-                int largestNumber = -1;
+                // Extract all digit characters from the line in order
+                var digits = new LinkedList<char>();
+                
+                foreach (char c in line)
+                {
+                    if (char.IsDigit(c))
+                    {
+                        digits.AddLast(c);
+                    }
+                }
+
+                // Find the largest digit that is at least 12 characters before the end
+                int cutoffIndex = digits.Count - 12;
+                char largestDigit = '0';
                 int largestIndex = -1;
-
-                // Find the largest digit and its first index (excluding last character)
-                for (int i = 0; i < line.Length - 1; i++)
+                
+                var node = digits.First;
+                int index = 0;
+                while (node != null && index <= cutoffIndex)
                 {
-                    if (char.IsDigit(line[i]))
+                    if (node.Value > largestDigit)
                     {
-                        int digit = int.Parse(line[i].ToString());
-                        if (digit > largestNumber)
+                        largestDigit = node.Value;
+                        largestIndex = index;
+                    }
+                    node = node.Next;
+                    index++;
+                }
+
+                // Remove all digits before the largest digit found
+                if (largestIndex >= 0)
+                {
+                    node = digits.First;
+                    index = 0;
+                    while (node != null && index <= largestIndex)
+                    {
+                        var nextNode = node.Next;
+                        if (index < largestIndex)
                         {
-                            largestNumber = digit;
-                            largestIndex = i;
+                            digits.Remove(node);
                         }
+                        node = nextNode;
+                        index++;
                     }
                 }
 
-                // Find the largest digit after the first largest digit
-                int largestAfter = -1;
-                if (largestIndex != -1)
+                // Remove earliest lowest digits until exactly 12 remain
+                char currentValue = '1';
+                while (digits.Count > 12)
                 {
-                    for (int i = largestIndex + 1; i < line.Length; i++)
+                    node = digits.First;
+                    while (node != null && digits.Count > 12)
                     {
-                        if (char.IsDigit(line[i]))
+                        var nextNode = node.Next;
+                        if (node.Value == currentValue)
                         {
-                            int digit = int.Parse(line[i].ToString());
-                            if (digit > largestAfter)
-                                largestAfter = digit;
+                            digits.Remove(node);
                         }
+                        node = nextNode;
                     }
+                    currentValue++;
                 }
 
-                // Concatenate the two largest values
-                string concatenated = $"{largestNumber}{largestAfter}";
+                // Concatenate remaining digits and convert to long
+                string concatenated = string.Concat(digits);
                 if (long.TryParse(concatenated, out long value))
                 {
+                    Console.WriteLine($"Line: {line} -> Remaining: {concatenated} -> Value: {value}");
                     sum += value;
                 }
             }
 
-            Console.WriteLine($"Sum of all concatenated values: {sum}");
+            Console.WriteLine($"Final sum: {sum}");
         }
     }
 }
+
+// 167502486318468 is too low
