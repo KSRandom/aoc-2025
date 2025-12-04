@@ -24,9 +24,11 @@ namespace aoc_2025_p3
             }
 
             long sum = 0;
+            int lineNumber = 0;
 
             foreach (var line in File.ReadLines(inputPath))
             {
+                lineNumber++;
                 if (string.IsNullOrWhiteSpace(line))
                     continue;
 
@@ -41,39 +43,53 @@ namespace aoc_2025_p3
                     }
                 }
 
-                // Find the largest digit that is at least 12 characters before the end
-                int cutoffIndex = digits.Count - 12;
-                char largestDigit = '0';
-                int largestIndex = -1;
-                
+                // Find largest digits iteratively, each time requiring one fewer digit remaining
+                int remainingRequired = 11;
                 var node = digits.First;
-                int index = 0;
-                while (node != null && index <= cutoffIndex)
+                
+                while (remainingRequired > 0 && node != null)
                 {
-                    if (node.Value > largestDigit)
+                    // Find the largest digit starting from current node with at least remainingRequired digits after it
+                    char largestDigit = '0';
+                    var largestNode = node;
+                    var searchNode = node;
+                    
+                    while (searchNode != null)
                     {
-                        largestDigit = node.Value;
-                        largestIndex = index;
-                    }
-                    node = node.Next;
-                    index++;
-                }
-
-                // Remove all digits before the largest digit found
-                if (largestIndex >= 0)
-                {
-                    node = digits.First;
-                    index = 0;
-                    while (node != null && index <= largestIndex)
-                    {
-                        var nextNode = node.Next;
-                        if (index < largestIndex)
+                        // Check if there are enough digits remaining after this position
+                        int digitsAfter = 0;
+                        var countNode = searchNode.Next;
+                        while (countNode != null)
                         {
-                            digits.Remove(node);
+                            digitsAfter++;
+                            countNode = countNode.Next;
                         }
-                        node = nextNode;
-                        index++;
+                        
+                        if (digitsAfter >= remainingRequired && searchNode.Value > largestDigit)
+                        {
+                            largestDigit = searchNode.Value;
+                            largestNode = searchNode;
+                        }
+                        else if (searchNode.Value > largestDigit && digitsAfter >= remainingRequired)
+                        {
+                            largestNode = searchNode;
+                        }
+                        
+                        searchNode = searchNode.Next;
                     }
+                    
+                    // Remove everything before the largest digit found
+                    var removeNode = node;
+                    while (removeNode != largestNode && removeNode != null)
+                    {
+                        var nextNode = removeNode.Next;
+                        digits.Remove(removeNode);
+                        removeNode = nextNode;
+                    }
+                    
+                    // Move to the next digit after the largest one found
+                    node = largestNode.Next;
+                    remainingRequired--;
                 }
 
                 // Remove earliest lowest digits until exactly 12 remain
@@ -97,11 +113,12 @@ namespace aoc_2025_p3
                 string concatenated = string.Concat(digits);
                 if (long.TryParse(concatenated, out long value))
                 {
-                    Console.WriteLine($"Line: {line} -> Remaining: {concatenated} -> Value: {value}");
+                    Console.WriteLine($"Line {lineNumber}: {line} -> Remaining: {concatenated} -> Value: {value}");
                     sum += value;
                 }
             }
 
+            Console.WriteLine($"Total lines processed: {lineNumber}");
             Console.WriteLine($"Final sum: {sum}");
         }
     }
