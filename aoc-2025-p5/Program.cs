@@ -65,26 +65,50 @@ namespace aoc_2025_p5
                 Console.WriteLine($"  {num}");
             }
 
-            // Check which numbers are in the ranges
-            int countInRange = 0;
-            foreach (var num in numbers)
+            // Merge overlapping ranges
+            var mergedRanges = new List<(long start, long end)>();
+            
+            foreach (var range in ranges.OrderBy(r => r.start))
             {
-                bool inRange = false;
-                foreach (var range in ranges)
+                if (mergedRanges.Count == 0)
                 {
-                    if (num >= range.start && num <= range.end)
-                    {
-                        inRange = true;
-                        break;
-                    }
+                    mergedRanges.Add(range);
                 }
-                if (inRange)
+                else
                 {
-                    countInRange++;
+                    var lastRange = mergedRanges[mergedRanges.Count - 1];
+                    
+                    // Check if current range overlaps with the last merged range
+                    if (range.start <= lastRange.end + 1)
+                    {
+                        // Merge: extend the last range if necessary
+                        long newEnd = Math.Max(lastRange.end, range.end);
+                        mergedRanges[mergedRanges.Count - 1] = (lastRange.start, newEnd);
+                    }
+                    else
+                    {
+                        // No overlap, add as new range
+                        mergedRanges.Add(range);
+                    }
                 }
             }
 
-            Console.WriteLine($"\nNumbers in range: {countInRange}");
+            Console.WriteLine($"\nMerged ranges: {mergedRanges.Count}");
+            foreach (var range in mergedRanges)
+            {
+                Console.WriteLine($"  {range.start}-{range.end}");
+            }
+
+            // Calculate the sum of differences (end - start + 1) for each range
+            long sumOfDifferences = 0;
+            foreach (var range in mergedRanges)
+            {
+                long difference = range.end - range.start + 1;
+                sumOfDifferences += difference;
+                Console.WriteLine($"  Range {range.start}-{range.end}: difference = {difference}");
+            }
+
+            Console.WriteLine($"\nSum of differences: {sumOfDifferences}");
         }
     }
 }
