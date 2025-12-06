@@ -1,7 +1,8 @@
 ﻿using System;
-using System.IO;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace aoc_2025_p6
 {
@@ -25,70 +26,87 @@ namespace aoc_2025_p6
 
             var lines = File.ReadAllLines(inputPath);
             
-            if (lines.Length < 2)
+            if (lines.Length == 0)
             {
-                Console.WriteLine("File must have at least 2 lines (data and operator line)");
+                Console.WriteLine("File is empty");
                 return;
             }
 
-            // Parse columns of numbers from all lines except the last
-            var columns = new List<List<long>>();
-            
-            for (int i = 0; i < lines.Length - 1; i++)
+            // Parse all lines into a 2D character array
+            int rows = lines.Length;
+            int cols = lines.Max(line => line.Length);
+            char[,] grid = new char[rows, cols];
+
+            // Fill the grid with characters (including spaces)
+            for (int i = 0; i < rows; i++)
             {
-                var parts = lines[i].Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
-                
-                for (int j = 0; j < parts.Length; j++)
+                for (int j = 0; j < cols; j++)
                 {
-                    if (long.TryParse(parts[j], out long number))
+                    if (j < lines[i].Length)
                     {
-                        // Ensure we have enough columns
-                        while (columns.Count <= j)
-                        {
-                            columns.Add(new List<long>());
-                        }
-                        columns[j].Add(number);
+                        grid[i, j] = lines[i][j];
+                    }
+                    else
+                    {
+                        grid[i, j] = ' '; // Fill with spaces if line is shorter
                     }
                 }
             }
 
-            // Parse the operator line (last line)
-            var operators = lines[lines.Length - 1].Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries).ToList();
-
-            Console.WriteLine($"Columns parsed: {columns.Count}");
-            for (int i = 0; i < columns.Count; i++)
-            {
-                Console.WriteLine($"  Column {i}: {string.Join(", ", columns[i])} - Operator: {(i < operators.Count ? operators[i] : "N/A")}");
-            }
-
-            // Perform operations on each column based on its operator
+            // Walk down each column from right to left and extract numbers/operators
             long totalSum = 0;
+            var numberList = new List<long>();
 
-            for (int i = 0; i < columns.Count; i++)
+            for (int col = cols - 1; col >= 0; col--)
             {
-                string op = i < operators.Count ? operators[i] : "";
-                long result = 0;
-
-                if (op == "+")
+                string columnValue = "";
+                
+                // Walk down the column from top to bottom, excluding the last row
+                for (int row = 0; row < rows - 1; row++)
                 {
-                    // Add all numbers in the column
-                    result = columns[i].Sum();
-                }
-                else if (op == "*")
-                {
-                    // Multiply all numbers in the column
-                    result = 1;
-                    foreach (var num in columns[i])
+                    if (grid[row, col] != ' ')
                     {
-                        result *= num;
+                        columnValue += grid[row, col];
                     }
                 }
+                // Add number to our list
+                // Add the number from this column if it exists
+                if (long.TryParse(columnValue, out long number))
+                {
+                    numberList.Add(number);
+                    Console.WriteLine($"Column {col}: {number}");
+                }
 
-                totalSum += result;
-                Console.WriteLine($"Column {i} ({op}): {result}");
+                // Check the last row for operator
+                string operatorValue = grid[rows - 1, col].ToString().Trim();
+
+                if (operatorValue == "+" || operatorValue == "*")
+                {
+                    // We hit an operator, perform the operation on our list
+                    long result = 0;
+                    
+                    if (operatorValue == "+")
+                    {
+                        result = numberList.Sum();
+                    }
+                    else if (operatorValue == "*")
+                    {
+                        result = 1;
+                        foreach (var num in numberList)
+                        {
+                            result *= num;
+                        }
+                    }
+
+                    totalSum += result;
+                    Console.WriteLine($"Column {col}: Operator '{operatorValue}' - Calculated {operatorValue} on {string.Join(", ", numberList)} = {result}");
+
+                    // Reset for next operator
+                    numberList.Clear();
+                }
             }
 
-            Console.WriteLine($"\nTotal sum of all results: {totalSum}");
+            Console.WriteLine($"\nFinal total sum: {totalSum}");
         }
     }
 }
