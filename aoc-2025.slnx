@@ -7,4 +7,5 @@
   <Project Path="aoc-2025-p5/aoc-2025-p5.csproj" Id="1517fb09-f250-49c9-90ee-49d56cfd639b" />
   <Project Path="aoc-2025-p6/aoc-2025-p6.csproj" Id="7e564ac0-7474-4580-a197-fb859407eb79" />
   <Project Path="aoc-2025-p7/aoc-2025-p7.csproj" Id="215679c5-913d-4423-baff-1e596e224f52" />
+  <Project Path="aoc-2025-p8/aoc-2025-p8.csproj" Id="11a18a67-efaa-45c5-8a2c-ab344c82ab5c" />
 </Solution>
