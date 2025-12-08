@@ -118,6 +118,7 @@
 
                 // Count 'v' characters
                 int vCount = 0;
+                int[] vCountByRow = new int[grid.Length];
                 for (int i = 0; i < grid.Length; i++)
                 {
                     for (int j = 0; j < grid[i].Length; j++)
@@ -125,11 +126,12 @@
                         if (grid[i][j] == 'v')
                         {
                             vCount++;
+                            vCountByRow[i]++;
                         }
                     }
                 }
 
-                Console.WriteLine($"\nTotal 'v' characters: {vCount}");
+                Console.WriteLine($"\nTotal 'v' characters: {vCount}, Max in a row: {vCountByRow.Max()}");
 
                 // Build the graph
                 var nodes = new Dictionary<string, Node>();
@@ -139,6 +141,10 @@
 
                 // Create a single E node
                 nodes["E"] = new Node { Id = "E" };
+
+                // Track nodes by row
+                var nodesByRow = new Dictionary<int, HashSet<string>>();
+                nodesByRow[0] = new HashSet<string> { "S" };
 
                 // Create column nodes for the bottom edge
                 var columnNodes = new Dictionary<int, string>();
@@ -152,6 +158,11 @@
                         columnNodes[col] = colId;
                         // Each column node connects to E
                         nodes[colId].Connections.Add("E");
+                        
+                        if (!nodesByRow.ContainsKey(grid.Length - 1))
+                            nodesByRow[grid.Length - 1] = new HashSet<string>();
+                        nodesByRow[grid.Length - 1].Add(colId);
+                        
                         colIndex++;
                     }
                 }
@@ -168,6 +179,11 @@
                             string vId = $"V{vIndex}";
                             nodes[vId] = new Node { Id = vId };
                             vPositions[vId] = (i, j);
+                            
+                            if (!nodesByRow.ContainsKey(i))
+                                nodesByRow[i] = new HashSet<string>();
+                            nodesByRow[i].Add(vId);
+                            
                             vIndex++;
                         }
                     }
@@ -266,15 +282,25 @@
                     }
                 }
 
-                Console.WriteLine("\n\nGraph structure:");
-                foreach (var node in nodes.Values.OrderBy(n => n.Id))
+                Console.WriteLine("\n\nNodes by row:");
+                foreach (var row in nodesByRow.OrderBy(kvp => kvp.Key))
                 {
-                    Console.WriteLine($"{node.Id} -> {string.Join(", ", node.Connections)}");
+                    Console.WriteLine($"Row {row.Key}: {string.Join(", ", row.Value.OrderBy(x => x))}");
                 }
 
-                // Count all paths from S to E
-                int pathCount = CountPaths(nodes, "S", "E", new HashSet<string>());
-                Console.WriteLine($"\nTotal paths from S to E: {pathCount}");
+                // Generate all combinations of nodes (one from each row)
+                var rowsList = nodesByRow.OrderBy(kvp => kvp.Key).ToList();
+                var validPaths = GenerateValidPaths(nodes, rowsList, 0, new List<string>());
+
+                // Filter out paths that have . in first or last row
+                var filteredPaths = validPaths.Where(path => path[0] != "." && path[path.Count - 1] != ".").ToList();
+
+                Console.WriteLine("\nAll valid paths:");
+                foreach (var path in filteredPaths)
+                {
+                    Console.WriteLine(string.Join(" -> ", path));
+                }
+                Console.WriteLine($"\n\nTotal valid paths: {filteredPaths.Count}");
             }
             catch (Exception ex)
             {
@@ -282,23 +308,45 @@
             }
         }
 
-        static int CountPaths(Dictionary<string, Node> nodes, string current, string target, HashSet<string> visited)
+        static List<List<string>> GenerateValidPaths(Dictionary<string, Node> nodes, List<KeyValuePair<int, HashSet<string>>> rowsList, int rowIndex, List<string> currentPath)
         {
-            if (current == target)
-                return 1;
+            var result = new List<List<string>>();
 
-            visited.Add(current);
-            int count = 0;
-
-            foreach (var next in nodes[current].Connections)
+            if (rowIndex == rowsList.Count)
             {
-                if (!visited.Contains(next))
+                result.Add(new List<string>(currentPath));
+                return result;
+            }
+
+            var nodesInRow = rowsList[rowIndex].Value.OrderBy(x => x).ToList();
+            foreach (var node in nodesInRow)
+            {
+                // Find the last non-placeholder node in the path
+                string lastNode = null;
+                for (int i = currentPath.Count - 1; i >= 0; i--)
                 {
-                    count += CountPaths(nodes, next, target, new HashSet<string>(visited));
+                    if (currentPath[i] != ".")
+                    {
+                        lastNode = currentPath[i];
+                        break;
+                    }
+                }
+
+                // Only continue if this node is connected from the last real node (or if it's the first node)
+                if (lastNode == null || nodes[lastNode].Connections.Contains(node))
+                {
+                    currentPath.Add(node);
+                    result.AddRange(GenerateValidPaths(nodes, rowsList, rowIndex + 1, currentPath));
+                    currentPath.RemoveAt(currentPath.Count - 1);
                 }
             }
 
-            return count;
+            // Also try skipping this row (add a placeholder)
+            currentPath.Add(".");
+            result.AddRange(GenerateValidPaths(nodes, rowsList, rowIndex + 1, currentPath));
+            currentPath.RemoveAt(currentPath.Count - 1);
+
+            return result;
         }
     }
 }
