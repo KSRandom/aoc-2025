@@ -19,7 +19,7 @@
         {
             if (args.Length == 0)
             {
-                Console.WriteLine("Usage: aoc-2025-p8 <filepath> [max_connections]");
+                Console.WriteLine("Usage: aoc-2025-p8 <filepath>");
                 return;
             }
 
@@ -29,20 +29,6 @@
             {
                 Console.WriteLine($"Error: File '{filePath}' not found.");
                 return;
-            }
-
-            int maxConnections = int.MaxValue;
-            if (args.Length > 1)
-            {
-                if (int.TryParse(args[1], out int maxConns))
-                {
-                    maxConnections = maxConns;
-                    Console.WriteLine($"Limiting connections to {maxConnections}");
-                }
-                else
-                {
-                    Console.WriteLine($"Warning: Invalid max_connections value '{args[1]}', using unlimited.");
-                }
             }
 
             try
@@ -147,8 +133,11 @@
 
                 Console.WriteLine("\n\nConnecting nodes by shortest distance:");
                 int connectionCount = 0;
+                int lastNode1 = -1;
+                int lastNode2 = -1;
                 foreach (var (distance, node1, node2) in distancePairs)
                 {
+                    Console.WriteLine($"Processing connection: Node {node1} <-> Node {node2} (distance: {distance:F2})");
                     bool node1InCircuit = nodeToCircuit.ContainsKey(node1);
                     bool node2InCircuit = nodeToCircuit.ContainsKey(node2);
 
@@ -161,6 +150,8 @@
                         nodeToCircuit[node1] = circuitId;
                         nodeToCircuit[node2] = circuitId;
                         connectionCount++;
+                        lastNode1 = node1;
+                        lastNode2 = node2;
                         Console.WriteLine($"Created circuit {circuitId}: Node {node1} -- Node {node2} (distance: {distance:F2})");
                     }
                     else if (node1InCircuit && !node2InCircuit)
@@ -170,6 +161,8 @@
                         circuits[circuitId].Add(node2);
                         nodeToCircuit[node2] = circuitId;
                         connectionCount++;
+                        lastNode1 = node1;
+                        lastNode2 = node2;
                         Console.WriteLine($"Added Node {node2} to circuit {circuitId} (distance: {distance:F2})");
                     }
                     else if (!node1InCircuit && node2InCircuit)
@@ -179,6 +172,8 @@
                         circuits[circuitId].Add(node1);
                         nodeToCircuit[node1] = circuitId;
                         connectionCount++;
+                        lastNode1 = node1;
+                        lastNode2 = node2;
                         Console.WriteLine($"Added Node {node1} to circuit {circuitId} (distance: {distance:F2})");
                     }
                     else
@@ -203,19 +198,21 @@
                             // Remove the old circuit
                             circuits[circuit2] = null;
                             connectionCount++;
+                            lastNode1 = node1;
+                            lastNode2 = node2;
                             Console.WriteLine($"Merged circuit {circuit2} into circuit {circuit1} (distance: {distance:F2})");
+                            
+                            // Check if all nodes are now in one circuit
+                            var activeCircuits = circuits.Where(c => c != null).ToList();
+                            if (activeCircuits.Count == 1 && activeCircuits[0].Count == nodeCount)
+                            {
+                                Console.WriteLine($"\nAll nodes are now connected in a single circuit!");
+                                break;
+                            }
                         } else
                         {
-                            Console.WriteLine($"Nodes were already connecdted in circuit {circuit1}");
-                            connectionCount++;
+                            Console.WriteLine($"Nodes were already connected in circuit {circuit1}");
                         }
-                    }
-
-                    // Limit the number of connections if maxConnections is set
-                    if (connectionCount >= maxConnections)
-                    {
-                        Console.WriteLine($"\nReached maximum number of connections ({maxConnections}). Stopping.");
-                        break;
                     }
                 }
 
@@ -229,37 +226,14 @@
                     }
                 }
 
-                // Find the 3 circuits with the most nodes
-                var activeCircuits = circuits.Where(c => c != null).ToList();
-                var circuitsBySize = activeCircuits
-                    .Select((circuit, index) => new { Circuit = circuit, Size = circuit.Count, OriginalIndex = index })
-                    .OrderByDescending(c => c.Size)
-                    .ToList();
-
-                Console.WriteLine("\n\nCircuits by size:");
-                foreach (var circuit in circuitsBySize)
+                // Calculate product of X coordinates of the last two nodes connected
+                if (lastNode1 >= 0 && lastNode2 >= 0)
                 {
-                    Console.WriteLine($"Circuit {circuit.OriginalIndex}: {circuit.Size} nodes");
-                }
-
-                // Get the top 3 circuits
-                var top3Circuits = circuitsBySize.Take(3).ToList();
-
-                if (top3Circuits.Count >= 3)
-                {
-                    long product = 1;
-                    Console.WriteLine("\n\nTop 3 circuits by size:");
-                    foreach (var circuit in top3Circuits)
-                    {
-                        Console.WriteLine($"Circuit {circuit.OriginalIndex}: {circuit.Size} nodes");
-                        product *= circuit.Size;
-                    }
-
-                    Console.WriteLine($"\nProduct of top 3 circuit sizes: {product}");
-                }
-                else
-                {
-                    Console.WriteLine($"\n\nWarning: Only {top3Circuits.Count} active circuits found. Need at least 3 for multiplication.");
+                    long xProduct = (long)nodes[lastNode1].X * nodes[lastNode2].X;
+                    Console.WriteLine($"\n\nLast two nodes connected: Node {lastNode1} and Node {lastNode2}");
+                    Console.WriteLine($"Node {lastNode1} coordinates: ({nodes[lastNode1].X}, {nodes[lastNode1].Y}, {nodes[lastNode1].Z})");
+                    Console.WriteLine($"Node {lastNode2} coordinates: ({nodes[lastNode2].X}, {nodes[lastNode2].Y}, {nodes[lastNode2].Z})");
+                    Console.WriteLine($"Product of X coordinates: {nodes[lastNode1].X} × {nodes[lastNode2].X} = {xProduct}");
                 }
             }
             catch (Exception ex)
