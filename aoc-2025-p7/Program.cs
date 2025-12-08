@@ -1,13 +1,7 @@
-﻿namespace aoc_2025_p7
+namespace aoc_2025_p7
 {
     internal class Program
     {
-        class Node
-        {
-            public string Id { get; set; }
-            public List<string> Connections { get; set; } = new();
-        }
-
         static void Main(string[] args)
         {
             if (args.Length == 0)
@@ -133,220 +127,128 @@
 
                 Console.WriteLine($"\nTotal 'v' characters: {vCount}, Max in a row: {vCountByRow.Max()}");
 
-                // Build the graph
-                var nodes = new Dictionary<string, Node>();
-                
-                // Create S node
-                nodes["S"] = new Node { Id = "S" };
+                // Count paths into each node
+                // Track nodes by row and their positions
+                var nodesByRow = new Dictionary<int, Dictionary<int, string>>();
+                nodesByRow[0] = new Dictionary<int, string> { { startCol, "S" } };
 
-                // Create a single E node
-                nodes["E"] = new Node { Id = "E" };
-
-                // Track nodes by row
-                var nodesByRow = new Dictionary<int, HashSet<string>>();
-                nodesByRow[0] = new HashSet<string> { "S" };
-
-                // Create column nodes for the bottom edge
-                var columnNodes = new Dictionary<int, string>();
-                int colIndex = 0;
-                for (int col = 0; col < grid[grid.Length - 1].Length; col++)
-                {
-                    if (grid[grid.Length - 1][col] == 'E')
-                    {
-                        string colId = $"C{colIndex}";
-                        nodes[colId] = new Node { Id = colId };
-                        columnNodes[col] = colId;
-                        // Each column node connects to E
-                        nodes[colId].Connections.Add("E");
-                        
-                        if (!nodesByRow.ContainsKey(grid.Length - 1))
-                            nodesByRow[grid.Length - 1] = new HashSet<string>();
-                        nodesByRow[grid.Length - 1].Add(colId);
-                        
-                        colIndex++;
-                    }
-                }
-
-                // Create V nodes and track their positions
-                var vPositions = new Dictionary<string, (int row, int col)>();
-                int vIndex = 0;
+                // Collect V nodes by row and position
                 for (int i = 0; i < grid.Length; i++)
                 {
+                    if (!nodesByRow.ContainsKey(i))
+                        nodesByRow[i] = new Dictionary<int, string>();
+
                     for (int j = 0; j < grid[i].Length; j++)
                     {
                         if (grid[i][j] == 'v')
                         {
-                            string vId = $"V{vIndex}";
-                            nodes[vId] = new Node { Id = vId };
-                            vPositions[vId] = (i, j);
-                            
-                            if (!nodesByRow.ContainsKey(i))
-                                nodesByRow[i] = new HashSet<string>();
-                            nodesByRow[i].Add(vId);
-                            
-                            vIndex++;
+                            nodesByRow[i][j] = $"V{i}_{j}";
+                        }
+                        else if (grid[i][j] == 'E')
+                        {
+                            nodesByRow[i][j] = $"E{j}";
                         }
                     }
                 }
 
-                // Connect S to V nodes that are directly below (via | path)
-                for (int col = 0; col < grid[1].Length; col++)
+                // Count paths into each node
+                var pathCounts = new Dictionary<string, long>();
+                pathCounts["S"] = 1;
+
+                // Process each row from top to bottom
+                for (int row = 0; row < grid.Length; row++)
                 {
-                    if (grid[1][col] == '|' || grid[1][col] == 'v')
+                    // For each node in this row, count paths to nodes in the next row
+                    foreach (var nodeEntry in nodesByRow[row])
                     {
-                        // Find which V this connects to
-                        var connectedV = vPositions.Where(kvp => kvp.Value.col == col).FirstOrDefault();
-                        if (connectedV.Key != null)
+                        int col = nodeEntry.Key;
+                        string nodeId = nodeEntry.Value;
+                        long pathsToThisNode = pathCounts[nodeId];
+
+                        // Find where paths go from this node
+                        // Check below (if it's a | path)
+                        if (row + 1 < grid.Length && grid[row + 1][col] == '|')
                         {
-                            nodes["S"].Connections.Add(connectedV.Key);
-                        }
-                        else if (grid[1][col] == '|')
-                        {
-                            // Direct connection to V below
-                            for (int row = 2; row < grid.Length; row++)
+                            // Trace down to find the next node
+                            for (int nextRow = row + 1; nextRow < grid.Length; nextRow++)
                             {
-                                if (grid[row][col] == 'v')
+                                if (grid[nextRow][col] == 'v' || grid[nextRow][col] == 'E')
                                 {
-                                    var v = vPositions.FirstOrDefault(kvp => kvp.Value == (row, col));
-                                    if (v.Key != null)
-                                    {
-                                        nodes["S"].Connections.Add(v.Key);
-                                    }
+                                    string nextNodeId = nodesByRow[nextRow][col];
+                                    if (!pathCounts.ContainsKey(nextNodeId))
+                                        pathCounts[nextNodeId] = 0;
+                                    pathCounts[nextNodeId] += pathsToThisNode;
                                     break;
+                                }
+                            }
+                        }
+
+                        // Check left and right branches (if this node is a 'v')
+                        if (grid[row][col] == 'v')
+                        {
+                            // Check left
+                            if (col > 0 && grid[row][col - 1] == '|')
+                            {
+                                for (int nextRow = row + 1; nextRow < grid.Length; nextRow++)
+                                {
+                                    if (grid[nextRow][col - 1] == 'v' || grid[nextRow][col - 1] == 'E')
+                                    {
+                                        string nextNodeId = nodesByRow[nextRow][col - 1];
+                                        if (!pathCounts.ContainsKey(nextNodeId))
+                                            pathCounts[nextNodeId] = 0;
+                                        pathCounts[nextNodeId] += pathsToThisNode;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            // Check right
+                            if (col + 1 < grid[row].Length && grid[row][col + 1] == '|')
+                            {
+                                for (int nextRow = row + 1; nextRow < grid.Length; nextRow++)
+                                {
+                                    if (grid[nextRow][col + 1] == 'v' || grid[nextRow][col + 1] == 'E')
+                                    {
+                                        string nextNodeId = nodesByRow[nextRow][col + 1];
+                                        if (!pathCounts.ContainsKey(nextNodeId))
+                                            pathCounts[nextNodeId] = 0;
+                                        pathCounts[nextNodeId] += pathsToThisNode;
+                                        break;
+                                    }
                                 }
                             }
                         }
                     }
                 }
 
-                // Connect V nodes to other V nodes and column nodes
-                foreach (var vEntry in vPositions)
-                {
-                    string vId = vEntry.Key;
-                    int vRow = vEntry.Value.row;
-                    int vCol = vEntry.Value.col;
-
-                    // Check left and right branches
-                    for (int col = 0; col < grid[vRow].Length; col++)
-                    {
-                        if ((col == vCol - 1 || col == vCol + 1) && grid[vRow][col] == '|')
-                        {
-                            // Trace down from this position
-                            for (int row = vRow + 1; row < grid.Length; row++)
-                            {
-                                if (grid[row][col] == 'v')
-                                {
-                                    var targetV = vPositions.FirstOrDefault(kvp => kvp.Value == (row, col));
-                                    if (targetV.Key != null && !nodes[vId].Connections.Contains(targetV.Key))
-                                    {
-                                        nodes[vId].Connections.Add(targetV.Key);
-                                    }
-                                    break;
-                                }
-                                else if (grid[row][col] == 'E')
-                                {
-                                    if (columnNodes.ContainsKey(col) && !nodes[vId].Connections.Contains(columnNodes[col]))
-                                    {
-                                        nodes[vId].Connections.Add(columnNodes[col]);
-                                    }
-                                    break;
-                                }
-                            }
-                        }
-                    }
-
-                    // Check center path (if v connects to | below)
-                    if (vRow + 1 < grid.Length && grid[vRow + 1][vCol] == '|')
-                    {
-                        // Trace down from center
-                        for (int row = vRow + 2; row < grid.Length; row++)
-                        {
-                            if (grid[row][vCol] == 'v')
-                            {
-                                var targetV = vPositions.FirstOrDefault(kvp => kvp.Value == (row, vCol));
-                                if (targetV.Key != null && !nodes[vId].Connections.Contains(targetV.Key))
-                                {
-                                    nodes[vId].Connections.Add(targetV.Key);
-                                }
-                                break;
-                            }
-                            else if (grid[row][vCol] == 'E')
-                            {
-                                if (columnNodes.ContainsKey(vCol) && !nodes[vId].Connections.Contains(columnNodes[vCol]))
-                                {
-                                    nodes[vId].Connections.Add(columnNodes[vCol]);
-                                }
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                Console.WriteLine("\n\nNodes by row:");
+                // Display path counts by row
+                Console.WriteLine("\n\nPath counts by row:");
                 foreach (var row in nodesByRow.OrderBy(kvp => kvp.Key))
                 {
-                    Console.WriteLine($"Row {row.Key}: {string.Join(", ", row.Value.OrderBy(x => x))}");
+                    Console.WriteLine($"Row {row.Key}:");
+                    foreach (var node in row.Value.OrderBy(kvp => kvp.Key))
+                    {
+                        string nodeId = node.Value;
+                        long count = pathCounts.ContainsKey(nodeId) ? pathCounts[nodeId] : 0;
+                        Console.WriteLine($"  {nodeId}: {count} paths");
+                    }
                 }
 
-                // Generate all combinations of nodes (one from each row)
-                var rowsList = nodesByRow.OrderBy(kvp => kvp.Key).ToList();
-                var validPaths = GenerateValidPaths(nodes, rowsList, 0, new List<string>());
-
-                // Filter out paths that have . in first or last row
-                var filteredPaths = validPaths.Where(path => path[0] != "." && path[path.Count - 1] != ".").ToList();
-
-                Console.WriteLine("\nAll valid paths:");
-                foreach (var path in filteredPaths)
+                // Display total paths to E
+                long totalPaths = 0;
+                foreach (var entry in pathCounts)
                 {
-                    Console.WriteLine(string.Join(" -> ", path));
+                    if (entry.Key.StartsWith("E"))
+                    {
+                        totalPaths += entry.Value;
+                    }
                 }
-                Console.WriteLine($"\n\nTotal valid paths: {filteredPaths.Count}");
+                Console.WriteLine($"\n\nTotal paths to E: {totalPaths}");
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error reading file: {ex.Message}");
             }
-        }
-
-        static List<List<string>> GenerateValidPaths(Dictionary<string, Node> nodes, List<KeyValuePair<int, HashSet<string>>> rowsList, int rowIndex, List<string> currentPath)
-        {
-            var result = new List<List<string>>();
-
-            if (rowIndex == rowsList.Count)
-            {
-                result.Add(new List<string>(currentPath));
-                return result;
-            }
-
-            var nodesInRow = rowsList[rowIndex].Value.OrderBy(x => x).ToList();
-            foreach (var node in nodesInRow)
-            {
-                // Find the last non-placeholder node in the path
-                string lastNode = null;
-                for (int i = currentPath.Count - 1; i >= 0; i--)
-                {
-                    if (currentPath[i] != ".")
-                    {
-                        lastNode = currentPath[i];
-                        break;
-                    }
-                }
-
-                // Only continue if this node is connected from the last real node (or if it's the first node)
-                if (lastNode == null || nodes[lastNode].Connections.Contains(node))
-                {
-                    currentPath.Add(node);
-                    result.AddRange(GenerateValidPaths(nodes, rowsList, rowIndex + 1, currentPath));
-                    currentPath.RemoveAt(currentPath.Count - 1);
-                }
-            }
-
-            // Also try skipping this row (add a placeholder)
-            currentPath.Add(".");
-            result.AddRange(GenerateValidPaths(nodes, rowsList, rowIndex + 1, currentPath));
-            currentPath.RemoveAt(currentPath.Count - 1);
-
-            return result;
         }
     }
 }
