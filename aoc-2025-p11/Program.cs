@@ -28,6 +28,10 @@
 
             long pathCount = CountPaths(graph, "you", "out");
             Console.WriteLine($"Number of paths from 'you' to 'out': {pathCount}");
+            Console.WriteLine();
+
+            long pathCountThroughBoth = CountPathsThroughNodes(graph, "svr", "out", new[] { "fft", "dac" });
+            Console.WriteLine($"Number of paths from 'svr' to 'out' through both 'fft' and 'dac': {pathCountThroughBoth}");
         }
 
         static Dictionary<string, List<string>> BuildGraph(string filePath)
@@ -187,6 +191,71 @@
             }
 
             memo[current] = pathCount;
+            return pathCount;
+        }
+
+        static long CountPathsThroughNodes(Dictionary<string, List<string>> graph, string start, string end, string[] requiredNodes)
+        {
+            if (!graph.ContainsKey(start))
+            {
+                Console.WriteLine($"Start node '{start}' not found in graph");
+                return 0;
+            }
+
+            if (!graph.ContainsKey(end))
+            {
+                Console.WriteLine($"End node '{end}' not found in graph");
+                return 0;
+            }
+
+            foreach (var requiredNode in requiredNodes)
+            {
+                if (!graph.ContainsKey(requiredNode))
+                {
+                    Console.WriteLine($"Required node '{requiredNode}' not found in graph");
+                    return 0;
+                }
+            }
+
+            // Find all paths that go through all required nodes
+            // We'll use a recursive approach with state tracking
+            var memo = new Dictionary<(string, int), long>();
+            return CountPathsWithRequiredDFS(graph, start, end, requiredNodes, 0, memo);
+        }
+
+        static long CountPathsWithRequiredDFS(Dictionary<string, List<string>> graph, string current, string end, 
+                                               string[] requiredNodes, int visitedMask, Dictionary<(string, int), long> memo)
+        {
+            // If we've reached the end and visited all required nodes
+            if (current == end)
+            {
+                int allVisitedMask = (1 << requiredNodes.Length) - 1;
+                return visitedMask == allVisitedMask ? 1 : 0;
+            }
+
+            var key = (current, visitedMask);
+            if (memo.ContainsKey(key))
+                return memo[key];
+
+            long pathCount = 0;
+            int newMask = visitedMask;
+
+            // Check if current node is a required node and mark it as visited
+            for (int i = 0; i < requiredNodes.Length; i++)
+            {
+                if (current == requiredNodes[i])
+                {
+                    newMask |= (1 << i);
+                    break;
+                }
+            }
+
+            foreach (var neighbor in graph[current])
+            {
+                pathCount += CountPathsWithRequiredDFS(graph, neighbor, end, requiredNodes, newMask, memo);
+            }
+
+            memo[key] = pathCount;
             return pathCount;
         }
     }
