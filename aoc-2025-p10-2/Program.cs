@@ -1,5 +1,4 @@
 using System.Collections;
-using Microsoft.EntityFrameworkCore;
 
 namespace aoc_2025_p10_2
 {
@@ -57,27 +56,22 @@ namespace aoc_2025_p10_2
 
             if (args.Length == 0)
             {
-                Console.WriteLine("Usage: aoc-2025-p10-2 <estimator|worker|solver> <filepath> [database-connection-string]");
+                Console.WriteLine("Usage: aoc-2025-p10-2 <solver|solver-parallel> <filepath>");
                 return;
             }
 
             string mode = args[0].ToLower();
             string filePath = args.Length > 1 ? args[1] : "";
-            string connectionString = args.Length > 2 ? args[2] : GetDefaultConnectionString();
 
             try
             {
-                if (mode == "estimator")
+                if (mode == "solver")
                 {
-                    await RunEstimator(filePath, connectionString);
+                    await RunSolver(filePath, parallel: false);
                 }
-                else if (mode == "worker")
+                else if (mode == "solver-parallel")
                 {
-                    await RunWorker(connectionString);
-                }
-                else if (mode == "solver")
-                {
-                    await RunSolver(filePath);
+                    await RunSolver(filePath, parallel: true);
                 }
                 else
                 {
@@ -93,7 +87,7 @@ namespace aoc_2025_p10_2
             Console.WriteLine($"\n\nTotal execution time: {stopwatch.Elapsed.TotalSeconds:F2} seconds");
         }
 
-        static async Task RunEstimator(string filePath, string connectionString)
+        static async Task RunSolver(string filePath, bool parallel)
         {
             if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
             {
@@ -101,133 +95,7 @@ namespace aoc_2025_p10_2
                 return;
             }
 
-            Console.WriteLine($"=== ESTIMATOR MODE ===");
-            Console.WriteLine($"Loading machines from '{filePath}'...\n");
-
-            string[] lines = File.ReadAllLines(filePath);
-            var machines = new List<(int machineNumber, int[] target, int[][] buttons)>();
-
-            for (int i = 0; i < lines.Length; i++)
-            {
-                string line = lines[i].Trim();
-                if (string.IsNullOrEmpty(line))
-                    continue;
-
-                var machine = ParseLine(line);
-                if (machine != null)
-                {
-                    machines.Add((i, machine.Target, machine.Buttons));
-                }
-            }
-
-            Console.WriteLine($"Successfully parsed {machines.Count} machines.\n");
-
-            // Estimate durations and show breakdown
-            Console.WriteLine("Estimating job durations:");
-            long totalEstimatedSeconds = 0;
-            foreach (var (machineNum, target, buttons) in machines)
-            {
-                long estimatedSeconds = JobEstimator.EstimateDurationSeconds(target, buttons);
-                totalEstimatedSeconds += estimatedSeconds;
-                Console.WriteLine($"  Machine {machineNum}: ~{estimatedSeconds} seconds ({estimatedSeconds / 60.0:F1} minutes)");
-            }
-
-            Console.WriteLine($"\nTotal estimated time: {totalEstimatedSeconds} seconds ({totalEstimatedSeconds / 3600.0:F1} hours)\n");
-
-            // Create jobs
-            Console.WriteLine("Creating jobs in database...");
-            var jobs = JobEstimator.CreateJobsFromMachines(machines);
-
-            // Save to database
-            var options = new DbContextOptionsBuilder<JobDbContext>()
-                .UseNpgsql(connectionString)
-                .Options;
-
-            using (var context = new JobDbContext(options))
-            {
-                await context.Database.MigrateAsync();
-                context.MachineJobs.AddRange(jobs);
-                await context.SaveChangesAsync();
-            }
-
-            Console.WriteLine($"Successfully created {jobs.Count} jobs in database.");
-            Console.WriteLine($"\nJobs ready for workers to process.");
-        }
-
-        static async Task RunWorker(string connectionString)
-        {
-            Console.WriteLine($"=== WORKER MODE ===");
-            Console.WriteLine($"Worker starting, polling for jobs...\n");
-
-            var options = new DbContextOptionsBuilder<JobDbContext>()
-                .UseNpgsql(connectionString)
-                .Options;
-
-            string workerId = Environment.MachineName;
-            int jobsProcessed = 0;
-
-            while (true)
-            {
-                // Create a fresh context for each job
-                using (var context = new JobDbContext(options))
-                {
-                    var manager = new JobManager(context, workerId);
-                    
-                    var job = await manager.GetNextJobAsync();
-                    if (job == null)
-                    {
-                        Console.WriteLine("No more jobs available. Worker exiting.");
-                        break;
-                    }
-
-                    Console.WriteLine($"Processing Job {job.Id} (Machine {job.MachineNumber})...");
-                    var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-
-                    try
-                    {
-                        var target = System.Text.Json.JsonSerializer.Deserialize<int[]>(job.TargetData);
-                        var buttons = System.Text.Json.JsonSerializer.Deserialize<int[][]>(job.ButtonsData);
-
-                        var initialState = new MachineState { State = new int[target.Length] };
-                        int stepsToTarget = FindPathToTarget(new Machine { Target = target, Buttons = buttons }, initialState);
-
-                        stopwatch.Stop();
-
-                        if (stepsToTarget >= 0)
-                        {
-                            await manager.ReportJobResultAsync(job.Id, stepsToTarget, true, stopwatch.ElapsedMilliseconds);
-                            Console.WriteLine($"Job {job.Id} completed: {stepsToTarget} button presses ({stopwatch.ElapsedMilliseconds}ms)\n");
-                        }
-                        else
-                        {
-                            await manager.ReportJobResultAsync(job.Id, -1, false, stopwatch.ElapsedMilliseconds);
-                            Console.WriteLine($"Job {job.Id} completed: No solution found ({stopwatch.ElapsedMilliseconds}ms)\n");
-                        }
-
-                        jobsProcessed++;
-                    }
-                    catch (Exception ex)
-                    {
-                        stopwatch.Stop();
-                        await manager.ReportJobFailedAsync(job.Id, ex.Message);
-                        Console.WriteLine($"Job {job.Id} failed: {ex.Message}\n");
-                    }
-                }
-            }
-
-            Console.WriteLine($"Worker processed {jobsProcessed} jobs.");
-        }
-
-        static async Task RunSolver(string filePath)
-        {
-            // Original solver logic
-            if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
-            {
-                Console.WriteLine($"Error: File '{filePath}' not found.");
-                return;
-            }
-
-            Console.WriteLine($"=== SOLVER MODE ===");
+            Console.WriteLine($"=== LINEAR SOLVER MODE ===");
             Console.WriteLine($"Parsing {filePath}...\n");
 
             string[] lines = File.ReadAllLines(filePath);
@@ -247,46 +115,66 @@ namespace aoc_2025_p10_2
             }
 
             Console.WriteLine($"Successfully parsed {machines.Count} machines.\n");
-
-            Console.WriteLine("Solving...");
-            long totalSteps = 0;
+            Console.WriteLine("Solving machines...");
+            
+            long totalPresses = 0;
             object lockObj = new object();
-            int completedMachines = 0;
+            int solvedCount = 0;
+            int unsolvableCount = 0;
 
-            Parallel.ForEach(Enumerable.Range(0, machines.Count), 
-                new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, i =>
-                {
-                    var machine = machines[i];
-                    var initialState = new MachineState { State = new int[machine.Target.Length] };
-                    int stepsToTarget = FindPathToTarget(machine, initialState);
-
-                    if (stepsToTarget >= 0)
+            if (parallel)
+            {
+                Parallel.ForEach(Enumerable.Range(0, machines.Count), 
+                    new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, i =>
                     {
+                        var machine = machines[i];
+                        var result = LinearSolver.SolveForButtonPresses(machine.Target, machine.Buttons);
+
                         lock (lockObj)
                         {
-                            completedMachines++;
-                            totalSteps += stepsToTarget;
-                            double percentage = (completedMachines * 100.0) / machines.Count;
-                            Console.WriteLine($"Machine {i}: {stepsToTarget} button presses ({percentage:F1}% complete)");
+                            if (result.HasValue)
+                            {
+                                solvedCount++;
+                                totalPresses += result.Value;
+                                double percentage = (solvedCount + unsolvableCount) * 100.0 / machines.Count;
+                                Console.WriteLine($"Machine {i}: {result.Value} button presses ({percentage:F1}% complete)");
+                            }
+                            else
+                            {
+                                unsolvableCount++;
+                                double percentage = (solvedCount + unsolvableCount) * 100.0 / machines.Count;
+                                Console.WriteLine($"Machine {i}: unsolvable ({percentage:F1}% complete)");
+                            }
                         }
+                    });
+            }
+            else
+            {
+                for (int i = 0; i < machines.Count; i++)
+                {
+                    var machine = machines[i];
+                    var result = LinearSolver.SolveForButtonPresses(machine.Target, machine.Buttons);
+
+                    if (result.HasValue)
+                    {
+                        solvedCount++;
+                        totalPresses += result.Value;
+                        double percentage = (solvedCount + unsolvableCount) * 100.0 / machines.Count;
+                        Console.WriteLine($"Machine {i}: {result.Value} button presses ({percentage:F1}% complete)");
                     }
                     else
                     {
-                        lock (lockObj)
-                        {
-                            completedMachines++;
-                            double percentage = (completedMachines * 100.0) / machines.Count;
-                            Console.WriteLine($"Machine {i}: unreachable ({percentage:F1}% complete)");
-                        }
+                        unsolvableCount++;
+                        double percentage = (solvedCount + unsolvableCount) * 100.0 / machines.Count;
+                        Console.WriteLine($"Machine {i}: unsolvable ({percentage:F1}% complete)");
                     }
-                });
+                }
+            }
 
-            Console.WriteLine($"\nTotal steps for all machines: {totalSteps}");
-        }
-
-        static string GetDefaultConnectionString()
-        {
-            return "Host=localhost;Database=aoc_2025;Username=postgres;Password=postgres";
+            Console.WriteLine($"\n\nResults:");
+            Console.WriteLine($"Solved: {solvedCount}/{machines.Count}");
+            Console.WriteLine($"Unsolvable: {unsolvableCount}/{machines.Count}");
+            Console.WriteLine($"Total button presses: {totalPresses}");
         }
 
         static Machine ParseLine(string line)
