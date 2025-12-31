@@ -11,6 +11,7 @@
             }
 
             string filePath = args[0];
+            bool printGraphviz = args.Length > 1 && args[1] == "--print";
             
             if (!File.Exists(filePath))
             {
@@ -20,7 +21,15 @@
 
             var graph = BuildGraph(filePath);
             Console.WriteLine($"Graph built with {graph.Count} nodes");
-            PrintGraph(graph);
+            
+            if (printGraphviz)
+            {
+                PrintGraphGraphviz(graph);
+            }
+            else
+            {
+                PrintGraph(graph);
+            }
             Console.WriteLine();
 
             DetectCycles(graph);
@@ -101,6 +110,19 @@
                     Console.WriteLine($"{node.Key} -> (no outgoing edges)");
                 }
             }
+        }
+
+        static void PrintGraphGraphviz(Dictionary<string, List<string>> graph)
+        {
+            Console.WriteLine("digraph G {");
+            foreach (var node in graph.OrderBy(x => x.Key))
+            {
+                foreach (var target in node.Value)
+                {
+                    Console.WriteLine($"  {node.Key} -> {target};");
+                }
+            }
+            Console.WriteLine("}");
         }
 
         static void DetectCycles(Dictionary<string, List<string>> graph)
