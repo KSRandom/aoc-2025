@@ -2,6 +2,7 @@
   <Project Path="aoc-2025-p1/aoc-2025-p1.csproj" />
   <Project Path="aoc-2025-p10-2/aoc-2025-p10-2.csproj" Id="1a26e55a-3b51-49b6-a4d0-fbf7f04edc53" />
   <Project Path="aoc-2025-p10/aoc-2025-p10.csproj" Id="5a5159c7-d79e-455f-85c0-a6242d74be2a" />
+  <Project Path="aoc-2025-p11/aoc-2025-p11.csproj" Id="a05782da-1fed-456e-aa2e-ea9e5317ba84" />
   <Project Path="aoc-2025-p2-test/aoc-2025-p2-test.csproj" />
   <Project Path="aoc-2025-p2/aoc-2025-p2.csproj" />
   <Project Path="aoc-2025-p3/aoc-2025-p3.csproj" />
